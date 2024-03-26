@@ -11,7 +11,6 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 
 class ConsumeApiServiceJob implements ShouldQueue
 {
@@ -22,24 +21,37 @@ class ConsumeApiServiceJob implements ShouldQueue
     {
         $this->urlToConsume = $url;
     }
-
-    
     public function handle()
     {
-        try{
+        try{    
             $response = Http::get($this->urlToConsume);
+            foreach($response['entries'] as $key => $value){
 
-            foreach ($response['entries'] as $key => $value) {
                 $obj = new Book();
+                
+                $titleCount = Book::select('title')
+                ->where('title',$value['title'])->count();
+                
 
-                $obj->title = $value['title'];
-                $obj->bio = isset($value['description']['value']) ? $value['description']['value'] : "key not found !";
-                $obj->value = $value['created']['value'];
-                $obj->save();
+                $bioCount = Book::select('bio')
+                ->where('bio',isset($value['description']['value']) ? $value['description']['value'] : "key not found !")->count();
+             
+
+                $valueCount = Book::select('value')
+                ->where('value',$value['created']['value'])->count();
+               
+
+                if($titleCount == 0 || $bioCount == 0 || $valueCount == 0){
+                    $obj->title = $value['title'];
+                    $obj->bio = isset($value['description']['value']) ? $value['description']['value'] : "key not found !";
+                    $obj->value = $value['created']['value'];
+                    $obj->save();
+
+                }
+              
             }
-
-            //Book::insert($dataArray);
-            echo "Data added !";
+            
+                echo "Data added !";
             
             Log::info('response',[$response]);
         }catch(Throwable $e){
